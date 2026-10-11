@@ -45,12 +45,13 @@ with st.sidebar:
     st.metric("AUC-ROC on unseen cases", f"{metrics['auc_roc']:.2f}")
     st.metric("Accuracy on unseen cases", f"{metrics['accuracy']:.0%}")
     st.caption(
-        f"Gradient Boosting trained on {metrics['n_train']:,} cases and tested on "
+        f"Tuned Gradient Boosting trained on {metrics['n_train']:,} cases and tested on "
         f"{metrics['n_test']:,} cases it never saw."
     )
     st.warning(
         "**Not a decision tool.** The model only sees broad labels (diagnosis, treatment type, age, "
-        "gender, year), not the medical evidence, so its predictions are only modestly better than chance. "
+        "gender, year, plus how common the diagnosis/treatment detail is), not the medical evidence, so its "
+        "predictions are only modestly better than chance (AUC-ROC about 0.7). "
         "It is for research and exploration."
     )
     st.caption(
@@ -100,6 +101,7 @@ with tab_lookup:
             p = core.predict_case(
                 model, case["Diagnosis Category"], case["Treatment Category"], case["Type"],
                 case["Age Range"], case["Patient Gender"], int(case["Report Year"]),
+                case["Diagnosis Sub Category"], case["Treatment Sub Category"],
             )
             idx = case.name
             if idx in test_idx:
@@ -127,7 +129,8 @@ with tab_lookup:
 # ---------------------------------------------------------------------------
 with tab_new:
     st.subheader("Enter a new client's case")
-    st.write("Fill in the details, then press **Predict**. Nothing here is stored permanently.")
+    st.write("Fill in the details, then press **Predict**. Nothing here is stored on the server. "
+             "Please do not enter real names or identifying information.")
 
     diagnoses = sorted(d for d in df["Diagnosis Category"].unique() if d != "Unknown")
     treatments = sorted(t for t in df["Treatment Category"].unique() if t != "Unknown")
@@ -136,23 +139,35 @@ with tab_new:
 
     st.session_state.setdefault("new_cases", [])
 
-    with st.form("new_case_form"):
-        client_name = st.text_input("Client name or ID (optional label for your own records)")
-        f1, f2 = st.columns(2)
-        diagnosis = f1.selectbox("Diagnosis category", diagnoses)
-        treatment = f2.selectbox("Treatment category", treatments)
-        f3, f4, f5 = st.columns(3)
-        age_range = f3.selectbox("Age range", core.AGE_ORDER)
-        gender = f4.selectbox("Gender", genders)
-        case_type = f5.selectbox("Case type", case_types)
-        year = st.number_input(
-            "Report year", min_value=2001, max_value=2016, value=2016, step=1,
-            help="The model learned from 2001-2016, so years beyond 2016 are not offered.",
-        )
-        submitted = st.form_submit_button("Predict")
+    client_name = st.text_input(
+        "Label for your own records (optional)",
+        help="Please do not type a real name or other identifying details. This is only a note for your download.",
+    )
+    f1, f2 = st.columns(2)
+    diagnosis = f1.selectbox("Diagnosis category", diagnoses)
+    treatment = f2.selectbox("Treatment category", treatments)
+    g1, g2 = st.columns(2)
+    dx_sub = g1.selectbox(
+        "Diagnosis detail (optional)",
+        [core.NOT_SPECIFIED] + core.sub_options(df, "Diagnosis Category", diagnosis, core.DX_SUB),
+    )
+    tx_sub = g2.selectbox(
+        "Treatment detail (optional)",
+        [core.NOT_SPECIFIED] + core.sub_options(df, "Treatment Category", treatment, core.TX_SUB),
+    )
+    f3, f4, f5 = st.columns(3)
+    age_range = f3.selectbox("Age range", core.AGE_ORDER)
+    gender = f4.selectbox("Gender", genders)
+    case_type = f5.selectbox("Case type", case_types)
+    year = st.number_input(
+        "Report year", min_value=2001, max_value=2016, value=2016, step=1,
+        help="The model learned from 2001-2016, so years beyond 2016 are not offered.",
+    )
+    submitted = st.button("Predict", type="primary")
 
     if submitted:
-        p = core.predict_case(model, diagnosis, treatment, case_type, age_range, gender, int(year))
+        p = core.predict_case(model, diagnosis, treatment, case_type, age_range, gender, int(year),
+                              dx_sub, tx_sub)
         rate, n = core.group_stats(df, diagnosis, age_range)
 
         st.markdown(f"### Estimated chance this denial is overturned: {p:.0%}")
@@ -183,7 +198,8 @@ with tab_new:
 
         st.session_state["new_cases"].append({
             "Client": client_name or "(unlabelled)",
-            "Diagnosis": diagnosis, "Treatment": treatment, "Age range": age_range,
+            "Diagnosis": diagnosis, "Diagnosis detail": dx_sub,
+            "Treatment": treatment, "Treatment detail": tx_sub, "Age range": age_range,
             "Gender": gender, "Case type": case_type, "Year": int(year),
             "Predicted chance of overturn": round(p, 3),
             "Past overturn rate (similar cases)": None if rate is None else round(rate, 3),

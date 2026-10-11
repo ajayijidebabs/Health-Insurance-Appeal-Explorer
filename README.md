@@ -1,5 +1,5 @@
-
 # Health Insurance Appeal Explorer
+
 A Streamlit app built on 19,245 real California Independent Medical Review (IMR) cases (2001-2016, public data from the California Department of Managed Health Care).
 
 - **Look up an existing case** by Reference ID: its details fill in automatically, with the actual decision, the model's estimate, and how similar cases turned out.
@@ -7,7 +7,7 @@ A Streamlit app built on 19,245 real California Independent Medical Review (IMR)
 
 ## Important limits
 
-- This is a **research and exploration tool, not a decision tool**. The model only sees broad labels (no medical evidence), so it is only modestly better than chance (about 0.69 AUC-ROC on cases it never saw).
+- This is a **research and exploration tool, not a decision tool**. The model only sees broad labels (no medical evidence), so it is only modestly better than chance (about 0.71 AUC-ROC on cases it never saw).
 - The reviewer's written `Findings` text is **never** used for prediction. It is written after the decision and gives the answer away.
 - Nothing entered in the app is stored on the server. The session list resets on refresh.
 
@@ -27,7 +27,7 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-The first start trains the model (a few seconds), then it is cached.
+The first start trains the tuned Gradient Boosting model (a few seconds), then it is cached.
 
 ## Put it online for free (GitHub + Streamlit Community Cloud)
 
@@ -42,7 +42,3 @@ Free apps go to sleep when nobody has used them for a while; the first visitor a
 ## Data source
 
 California Department of Managed Health Care, Independent Medical Review determinations (public dataset).
-=======
-# Health-Insurance-Appeal-Explorer
-A machine learning-powered web application for exploring health insurance appeal cases, predicting appeal outcomes, and comparing model predictions with historical overturn rates. Includes case lookup, diagnosis- and age-based fairness analysis, and CSV export of newly entered cases.
-
